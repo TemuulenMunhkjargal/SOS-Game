@@ -1,3 +1,4 @@
 # SOS-Game
-SOS Game for CS449 written in C++/n
+SOS Game for CS449 written in C++
+
 Temuulen Munkhjargal UMKC
