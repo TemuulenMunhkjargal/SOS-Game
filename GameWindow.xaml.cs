@@ -67,6 +67,13 @@ namespace SOSGameUI
                 return; // Exit the method early if no selection is made
             }
 
+            // Check if the cell already contains an S or O
+            if (button.Content != null)
+            {
+                MessageBox.Show("This cell is already occupied. Please choose another cell.", "Invalid Move", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return; // Exit the method early if the cell is already occupied
+            }
+
             // Retrieve the selected letter (S or O)
             char letter = (LetterComboBox.SelectedItem as ComboBoxItem).Content.ToString()[0];
 
