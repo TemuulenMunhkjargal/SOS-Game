@@ -1,51 +1,50 @@
-﻿using SOSGameLib;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using SOSGameLib;
 
 namespace SOSGameUI
 {
     public partial class GameWindow : Window
     {
         private SOSGameMain _game;
-        private Player _currentPlayer;
 
         public GameWindow(int boardSize, string gameMode)
         {
             InitializeComponent();
-
-            // Initialize the game based on the board size and game mode
-            GameMode mode = gameMode == "Simple" ? GameMode.Simple : GameMode.General;
-            _game = new SOSGameMain(boardSize, mode);
-
-            // Set initial player turn
-            _currentPlayer = Player.Red;
-
-            // Update game mode in UI
             GameModeTextBlock.Text = gameMode;
 
-            // Initialize the game grid
+            if (gameMode == "Simple")
+            {
+                _game = new SimpleGame(boardSize);
+            }
+            else
+            {
+                _game = new GeneralGame(boardSize);
+            }
+
             InitializeBoard(boardSize);
+            UpdateTurnDisplay();
+            UpdateScoreDisplay();
         }
 
         private void InitializeBoard(int size)
         {
+            GameGrid.Children.Clear();
             GameGrid.RowDefinitions.Clear();
             GameGrid.ColumnDefinitions.Clear();
-            GameGrid.Children.Clear();
 
-            // Create row and column definitions for the grid
             for (int i = 0; i < size; i++)
             {
                 GameGrid.RowDefinitions.Add(new RowDefinition());
                 GameGrid.ColumnDefinitions.Add(new ColumnDefinition());
             }
 
-            // Add buttons to the grid and assign row/column positions
             for (int row = 0; row < size; row++)
             {
                 for (int col = 0; col < size; col++)
                 {
-                    var button = new Button();
+                    Button button = new Button();
                     button.Click += Cell_Click;
                     GameGrid.Children.Add(button);
                     Grid.SetRow(button, row);
@@ -60,42 +59,66 @@ namespace SOSGameUI
             int row = Grid.GetRow(button);
             int col = Grid.GetColumn(button);
 
-            // Ensure that the player has selected a letter (S or O)
-            if (LetterComboBox.SelectedItem == null)
+            char selectedLetter = SButton.IsChecked == true ? 'S' : 'O';
+
+            if (_game.MakeMove(row, col, selectedLetter))
             {
-                MessageBox.Show("Please select a letter (S or O) before making a move.", "Selection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return; // Exit the method early if no selection is made
-            }
+                button.Content = selectedLetter;
+                UpdateScoreDisplay();
+                UpdateTurnDisplay();
 
-            // Check if the cell already contains an S or O
-            if (button.Content != null)
-            {
-                MessageBox.Show("This cell is already occupied. Please choose another cell.", "Invalid Move", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return; // Exit the method early if the cell is already occupied
-            }
-
-            // Retrieve the selected letter (S or O)
-            char letter = (LetterComboBox.SelectedItem as ComboBoxItem).Content.ToString()[0];
-
-            // Now proceed with making the move
-            if (_game.MakeMove(row, col, _currentPlayer, letter))
-            {
-                button.Content = letter;  // Set the content of the button to the chosen letter
-                _currentPlayer = _currentPlayer == Player.Red ? Player.Blue : Player.Red;  // Switch turns
-
-                // Update current turn in UI
-                CurrentTurnTextBlock.Text = _currentPlayer == Player.Red ? "Red" : "Blue";
+                if (_game.GameOver)
+                {
+                    string winnerMessage = _game.Winner == Player.None ? "It's a draw!" : $"{_game.Winner} wins!";
+                    MessageBox.Show(winnerMessage, "Game Over", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             else
             {
-                MessageBox.Show("Invalid Move!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Invalid Move! Cell is occupied.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void LetterButton_Click(object sender, RoutedEventArgs e)
+        {
+            var clickedButton = (ToggleButton)sender;
+            
+            // Ensure one button is always selected
+            if (clickedButton == SButton)
+            {
+                OButton.IsChecked = false;
+                SButton.IsChecked = true;
+            }
+            else
+            {
+                SButton.IsChecked = false;
+                OButton.IsChecked = true;
+            }
+        }
+
+        private void UpdateScoreDisplay()
+        {
+            if (_game is GeneralGame generalGame)
+            {
+                RedScoreTextBlock.Text = generalGame.RedScore.ToString();
+                BlueScoreTextBlock.Text = generalGame.BlueScore.ToString();
+            }
+            else
+            {
+                RedScoreTextBlock.Text = "N/A";
+                BlueScoreTextBlock.Text = "N/A";
+            }
+        }
+
+        private void UpdateTurnDisplay()
+        {
+            CurrentTurnTextBlock.Text = _game.CurrentPlayer == Player.Red ? "Red's Turn" : "Blue's Turn";
         }
 
         private void EndGame_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("Game Ended");
-            this.Close(); // Close the game window
+            this.Close();
         }
     }
 }
