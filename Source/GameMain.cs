@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace SOSGameLib
 {
@@ -119,86 +120,4 @@ namespace SOSGameLib
             return true;
         }
     }
-
-    public class SimpleGame : SOSGameMain
-    {
-        public override int RedScore { get; set; }
-        public override int BlueScore { get; set; }
-
-        public SimpleGame(int boardSize) : base(boardSize) { }
-
-        public override bool MakeMove(int row, int col, char letter)
-        {
-            if (GameOver || Board[row, col] != Player.None) return false;
-
-            Board[row, col] = CurrentPlayer;
-
-            if (CheckForSOS(row, col, letter))
-            {
-                Winner = CurrentPlayer;
-                GameOver = true;
-            }
-            else
-            {
-                // Switch turns only if no SOS was formed
-                CurrentPlayer = CurrentPlayer == Player.Red ? Player.Blue : Player.Red;
-            }
-            if (IsBoardFull())
-            {
-                GameOver = true;
-                Winner = Player.None;  // Draw
-            }
-
-            return true;
-        }
-    }
-
-    public class GeneralGame : SOSGameMain
-    {
-        public override int RedScore { get; set; }
-        public override int BlueScore { get; set; }
-
-        public GeneralGame(int boardSize) : base(boardSize)
-        {
-            RedScore = 0;
-            BlueScore = 0;
-        }
-
-        public override bool MakeMove(int row, int col, char letter)
-        {
-            if (GameOver || Board[row, col] != Player.None) return false;
-
-            Board[row, col] = CurrentPlayer;
-
-            if (CheckForSOS(row, col, letter))
-            {
-                // Increment the score of the current player
-                if (CurrentPlayer == Player.Red)
-                    RedScore++;
-                else
-                    BlueScore++;
-            }
-            else
-            {
-                // Switch turns only if no SOS was formed
-                CurrentPlayer = CurrentPlayer == Player.Red ? Player.Blue : Player.Red;
-            }
-
-            // Check if the board is full
-            if (IsBoardFull())
-            {
-                GameOver = true;
-                if (RedScore > BlueScore)
-                    Winner = Player.Red;
-                else if (BlueScore > RedScore)
-                    Winner = Player.Blue;
-                else
-                    Winner = Player.None;  // Draw
-            }
-
-            return true;
-        }
-
-    }
 }
-

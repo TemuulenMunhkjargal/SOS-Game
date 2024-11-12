@@ -76,11 +76,14 @@
     <Compile Include="InitialMenuWindow.xaml.cs">
       <DependentUpon>InitialMenuWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Source\ComputerPlayer.cs" />
     <Compile Include="Source\GameMain.cs" />
     <ApplicationDefinition Include="App.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </ApplicationDefinition>
+    <Compile Include="Source\GeneralGame.cs" />
+    <Compile Include="Source\SimpleGame.cs" />
     <Page Include="GameWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

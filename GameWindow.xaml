@@ -48,8 +48,5 @@
             </StackPanel>
             <Button Content="End Game" Click="EndGame_Click" Width="80" Height="40" Margin="20,0,0,0"/>
         </StackPanel>
-        
-        
-        
     </Grid>
 </Window>
