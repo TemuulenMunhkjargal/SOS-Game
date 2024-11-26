@@ -82,6 +82,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </ApplicationDefinition>
+    <Compile Include="Source\GameRecorder.cs" />
     <Compile Include="Source\GeneralGame.cs" />
     <Compile Include="Source\SimpleGame.cs" />
     <Page Include="GameWindow.xaml">

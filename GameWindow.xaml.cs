@@ -13,7 +13,11 @@ namespace SOSGameUI
         private bool _isRedComputer;
         private bool _isBlueComputer;
         private System.Windows.Threading.DispatcherTimer _computerMoveTimer;
-
+        private GameRecorder _gameRecorder;  
+        private GameReplayer _gameReplayer;  
+        private int _currentReplayMove;      
+        private bool _isReplayMode;          
+        private System.Windows.Threading.DispatcherTimer _replayTimer;
         public GameWindow(int boardSize, string gameMode, bool redIsComputer, bool blueIsComputer)
         {
             InitializeComponent();
@@ -30,18 +34,22 @@ namespace SOSGameUI
                 _game = new GeneralGame(boardSize);
             }
 
+            _gameRecorder = new GameRecorder(gameMode, boardSize, redIsComputer, blueIsComputer);
             _computerPlayer = new ComputerPlayer();
 
             InitializeBoard(boardSize);
+            InitializeMenus(); 
             UpdateTurnDisplay();
             UpdateScoreDisplay();
 
-            // Initialize timer for computer moves
             _computerMoveTimer = new System.Windows.Threading.DispatcherTimer();
             _computerMoveTimer.Tick += ComputerMove_Tick;
             _computerMoveTimer.Interval = TimeSpan.FromSeconds(1);
 
-            // Start computer move if red is computer
+            _replayTimer = new System.Windows.Threading.DispatcherTimer();
+            _replayTimer.Tick += ReplayMove_Tick;
+            _replayTimer.Interval = TimeSpan.FromSeconds(1);
+
             if (_isRedComputer && _game.CurrentPlayer == Player.Red)
             {
                 _computerMoveTimer.Start();
@@ -55,18 +63,17 @@ namespace SOSGameUI
                 (_game.CurrentPlayer == Player.Blue && _isBlueComputer))
             {
                 var (row, col, letter) = _computerPlayer.GetMove(_game);
-
-                // Find the button at the selected position
                 var button = GetButtonAt(row, col);
                 if (button != null)
                 {
-                    // Update the UI to show the selected letter
                     SButton.IsChecked = (letter == 'S');
                     OButton.IsChecked = (letter == 'O');
 
-                    // Make the move
                     if (_game.MakeMove(row, col, letter))
                     {
+                        // Record the computer's move
+                        _gameRecorder.RecordMove(_game.CurrentPlayer, row, col, letter);
+
                         button.Content = letter;
                         UpdateScoreDisplay();
                         UpdateTurnDisplay();
@@ -78,7 +85,6 @@ namespace SOSGameUI
                         }
                         else
                         {
-                            // Schedule next computer move if needed
                             if ((_game.CurrentPlayer == Player.Red && _isRedComputer) ||
                                 (_game.CurrentPlayer == Player.Blue && _isBlueComputer))
                             {
@@ -89,6 +95,100 @@ namespace SOSGameUI
                 }
             }
         }
+        private void InitializeMenus()
+        {
+            var menuBar = new Menu();
+            var fileMenu = new MenuItem { Header = "_File" };
+
+            var saveGame = new MenuItem { Header = "_Save Game" };
+            saveGame.Click += SaveGame_Click;
+
+            var loadGame = new MenuItem { Header = "_Load Game" };
+            loadGame.Click += LoadGame_Click;
+
+            fileMenu.Items.Add(saveGame);
+            fileMenu.Items.Add(loadGame);
+            menuBar.Items.Add(fileMenu);
+
+            // Add the menu bar to the top of the window
+            var mainGrid = (Grid)Content;
+            mainGrid.RowDefinitions.Insert(0, new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(menuBar, 0);
+            mainGrid.Children.Add(menuBar);
+
+            // Adjust the rows of other elements
+            foreach (UIElement element in mainGrid.Children)
+            {
+                if (element != menuBar)
+                {
+                    Grid.SetRow(element, Grid.GetRow(element) + 1);
+                }
+            }
+        }
+        private async void SaveGame_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                DefaultExt = ".sos",
+                Filter = "SOS Game Files (*.sos)|*.sos"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    await _gameRecorder.SaveToFile(dialog.FileName);
+                    MessageBox.Show("Game saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error saving game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        private async void LoadGame_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".sos",
+                Filter = "SOS Game Files (*.sos)|*.sos"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    _gameReplayer = await GameReplayer.LoadFromFile(dialog.FileName);
+                    StartReplay();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error loading game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        private void StartReplay()
+        {
+            // Reset the game state
+            _isReplayMode = true;
+            _currentReplayMove = 0;
+            _computerMoveTimer.Stop();
+
+            // Create new game with loaded settings
+            if (_gameReplayer.GameMode == "Simple")
+                _game = new SimpleGame(_gameReplayer.BoardSize);
+            else
+                _game = new GeneralGame(_gameReplayer.BoardSize);
+
+            // Reset the UI
+            InitializeBoard(_gameReplayer.BoardSize);
+            UpdateTurnDisplay();
+            UpdateScoreDisplay();
+
+            // Start the replay
+            _replayTimer.Start();
+        }
+
         private Button GetButtonAt(int row, int col)
         {
             foreach (Button button in GameGrid.Children)
@@ -99,6 +199,30 @@ namespace SOSGameUI
                 }
             }
             return null;
+        }
+        private void ReplayMove_Tick(object sender, EventArgs e)
+        {
+            if (_currentReplayMove >= _gameReplayer.Moves.Count)
+            {
+                _replayTimer.Stop();
+                _isReplayMode = false;
+                MessageBox.Show("Replay finished!", "Replay Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var move = _gameReplayer.Moves[_currentReplayMove];
+            if (_game.MakeMove(move.Row, move.Col, move.Letter))
+            {
+                var button = GetButtonAt(move.Row, move.Col);
+                if (button != null)
+                {
+                    button.Content = move.Letter;
+                    UpdateScoreDisplay();
+                    UpdateTurnDisplay();
+                }
+            }
+
+            _currentReplayMove++;
         }
 
         private void InitializeBoard(int size)
@@ -128,7 +252,9 @@ namespace SOSGameUI
 
         private void Cell_Click(object sender, RoutedEventArgs e)
         {
-            // Ignore clicks if it's a computer's turn
+            if (_isReplayMode)
+                return;
+
             if ((_game.CurrentPlayer == Player.Red && _isRedComputer) ||
                 (_game.CurrentPlayer == Player.Blue && _isBlueComputer))
             {
@@ -143,6 +269,9 @@ namespace SOSGameUI
 
             if (_game.MakeMove(row, col, selectedLetter))
             {
+                // Record the move
+                _gameRecorder.RecordMove(_game.CurrentPlayer, row, col, selectedLetter);
+
                 button.Content = selectedLetter;
                 UpdateScoreDisplay();
                 UpdateTurnDisplay();
@@ -154,7 +283,6 @@ namespace SOSGameUI
                 }
                 else
                 {
-                    // Schedule computer move if it's computer's turn
                     if ((_game.CurrentPlayer == Player.Red && _isRedComputer) ||
                         (_game.CurrentPlayer == Player.Blue && _isBlueComputer))
                     {
